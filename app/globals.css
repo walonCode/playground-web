@@ -1,26 +1,120 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Glass Box tokens.
+ *
+ * Four hues, one job each. Cyan means nominal AND live value — a number ticking
+ * in cyan IS the healthy state, so the two never need separate colours. Fuchsia
+ * is reserved for what the visitor caused and is never a status.
+ *
+ * Invariant: status contexts never use fuchsia, fuchsia contexts never use
+ * status hues. A visitor learns the language once and it holds everywhere.
+ */
+@theme {
+  /* Neutrals. Cool cast so cyan and fuchsia read as emitted light, not paint. */
+  --color-void: #08090b;
+  --color-panel: #0f1114;
+  --color-line: #1e2227;
+  --color-line-bright: #2c323a;
+
+  --color-text-hi: #e8eaed;
+  --color-text-mid: #9ba1a9;
+  /*
+   * 5.00:1 on void. The obvious pick here is a dimmer grey, but text-low
+   * carries the 10–11px eyebrows and pending values, and small type is exactly
+   * where AA stops being a formality. Measured in the design lab, not guessed.
+   */
+  --color-text-low: #79808a;
+
+  /* Status triplet, used identically in every panel. */
+  --color-nominal: #34d8e8;
+  --color-degraded: #f5a524;
+  --color-down: #ff4d4d;
+
+  /* Causality — the visitor's own action. Never a status. */
+  --color-action: #f42bb0;
+
+  /* Dim companions for fills and trails sitting behind a bright stroke. */
+  --color-nominal-dim: #0e3d44;
+  --color-degraded-dim: #3d2f10;
+  --color-down-dim: #3d1717;
+  --color-action-dim: #3d0d2d;
+
+  /* Hairline flat: nothing in this system is rounded. */
+  --radius-panel: 0px;
 }
 
+/*
+ * `inline` so the utilities resolve against the font variables next/font puts
+ * on <html>. The theme key and the font variable must not share a name, or the
+ * declaration becomes self-referential and silently falls back.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-archivo);
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-plex-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    background: var(--color-void);
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-void);
+    color: var(--color-text-hi);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--color-action);
+    color: #fff;
+  }
+
+  /* Keyboard focus is part of the quality floor, not an afterthought. */
+  :focus-visible {
+    outline: 2px solid var(--color-nominal);
+    outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /*
+   * Every number here is a real measurement and measurements are read in
+   * columns. Tabular figures stop digits jittering as values update.
+   */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Archivo carries a width axis; the display face is set wide and tight. */
+  .display-wide {
+    font-family: var(--font-display);
+    font-variation-settings: "wdth" 112;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+  }
+}
+
+/*
+ * Honours the OS setting globally. Components still branch on the capability
+ * tier, but this guarantees the floor even if one of them forgets to.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore-start lint/complexity/noImportantStyles: an accessibility
+     * floor has to outrank component styles or it is not a floor. Without
+     * !important any component transition silently overrides the user's OS
+     * setting, which is the exact failure this block exists to prevent. */
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+    /* biome-ignore-end lint/complexity/noImportantStyles: see above */
+  }
 }
