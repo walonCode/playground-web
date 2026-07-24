@@ -1,32 +1,32 @@
 "use client";
 
-import type { Reading } from "@/components/hero/Mesh3d";
 import { ChatPanel } from "@/components/panels/ChatPanel";
+import { HealthBoard } from "@/components/panels/HealthBoard";
 import { PaymentPanel } from "@/components/panels/PaymentPanel";
 import { SearchCachePanel } from "@/components/panels/SearchCachePanel";
-import { ServiceStatusCard } from "@/components/panels/ServiceStatusCard";
 import { TaskPanel } from "@/components/panels/TaskPanel";
-import { NODE_BY_ID, NODE_META } from "@/lib/mesh";
+import { NODE_BY_ID, NODE_META, nodeColor } from "@/lib/mesh";
+import { useThemeValue } from "@/lib/theme";
 
 /**
  * Picks the right panel for a selected node.
  *
- * search and cache open the one full interactive demo; every other node opens
- * a live status card. As task, payment and chat land, their cases slot in here
- * and nothing else in the explorer changes.
+ * Every node opens a working surface: search/cache/task/payment/chat open their
+ * interactive demo, and gateway/auth/lifecycle/infra open the live health board.
+ * Nothing opens to a dead end.
  */
 export function NodeOverlay({
   nodeId,
-  reading,
   onClose,
 }: {
   nodeId: string;
-  reading: Reading | undefined;
   onClose: () => void;
 }) {
+  const theme = useThemeValue();
   const node = NODE_BY_ID.get(nodeId);
   if (!node) return null;
   const demo = NODE_META[nodeId]?.demo ?? "status";
+  const color = nodeColor(nodeId, theme);
 
   return (
     <div className="pointer-events-auto flex h-full flex-col">
@@ -35,13 +35,11 @@ export function NodeOverlay({
       <div
         className="flex items-center justify-between border-b border-line px-4 py-2"
         style={{
-          background: `linear-gradient(to right, ${NODE_META[nodeId]?.color}1f, transparent)`,
+          background: `linear-gradient(to right, ${color}1f, transparent)`,
         }}
       >
         <span className="flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] uppercase">
-          <span style={{ color: NODE_META[nodeId]?.color }}>
-            {NODE_META[nodeId]?.icon}
-          </span>
+          <span style={{ color }}>{NODE_META[nodeId]?.icon}</span>
           <span className="text-text-hi">{node.label}</span>
         </span>
         <button
@@ -64,11 +62,7 @@ export function NodeOverlay({
         ) : demo === "chat" ? (
           <ChatPanel />
         ) : (
-          <ServiceStatusCard
-            nodeId={nodeId}
-            label={node.label}
-            reading={reading}
-          />
+          <HealthBoard nodeId={nodeId} />
         )}
       </div>
     </div>
