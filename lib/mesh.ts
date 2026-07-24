@@ -139,6 +139,111 @@ export const MESH_EDGES: MeshEdge[] = [
 export const NODE_BY_ID = new Map(MESH_NODES.map((n) => [n.id, n]));
 
 /**
+ * What clicking a node opens, and one honest line about it.
+ *
+ * `demo` picks the overlay: `search-cache` is the full interactive demo; `status`
+ * nodes show a live ping card (real data, fuller demo later); `infra` nodes show
+ * their dependency health. Nothing here promises a control that does not exist.
+ */
+export type NodeDemo =
+  | "search-cache"
+  | "task"
+  | "payment"
+  | "chat"
+  | "status"
+  | "infra";
+
+export interface NodeMeta {
+  demo: NodeDemo;
+  blurb: string;
+  /**
+   * The service's own identity colour — what it IS, not how it's doing.
+   *
+   * Health moved to a lamp beside the label so this channel could be freed up:
+   * a mesh where every node is the same cyan tells you nothing about which node
+   * you are looking at. Now colour names the service and the lamp reports it.
+   */
+  color: string;
+  /** A glyph so a node is identifiable without reading the label. */
+  icon: string;
+}
+
+export const NODE_META: Record<string, NodeMeta> = {
+  gateway: {
+    demo: "status",
+    color: "#e8eaed",
+    icon: "◈",
+    blurb:
+      "The single public door. Every request enters here and fans out over Kafka.",
+  },
+  search: {
+    demo: "search-cache",
+    color: "#06b6d4",
+    icon: "⌕",
+    blurb:
+      "Full-text search over 60k documents, cached in Redis. Try the cache demo.",
+  },
+  cache: {
+    demo: "search-cache",
+    color: "#fb923c",
+    icon: "⚡",
+    blurb:
+      "The Redis cache search reads through. Evict it and watch search slow down.",
+  },
+  task: {
+    demo: "task",
+    color: "#f59e0b",
+    icon: "⚙",
+    blurb:
+      "Your todo list, where each item is a real queue job — run one and watch it retry or dead-letter.",
+  },
+  payment: {
+    demo: "payment",
+    color: "#f43f5e",
+    icon: "◉",
+    blurb:
+      "A simulated payment saga with compensating steps. No real money moves.",
+  },
+  chat: {
+    demo: "chat",
+    color: "#10b981",
+    icon: "◈",
+    blurb:
+      "Real-time rooms over WebSockets. Send a message and watch it broadcast.",
+  },
+  auth: {
+    demo: "status",
+    color: "#8b5cf6",
+    icon: "⚿",
+    blurb: "Better Auth — email/password and JWT, verified at the gateway.",
+  },
+  lifecycle: {
+    demo: "status",
+    color: "#6366f1",
+    icon: "◐",
+    blurb: "The health service that reports whether this box is usable.",
+  },
+  kafka: {
+    demo: "infra",
+    color: "#94a3b8",
+    icon: "≋",
+    blurb: "The broker every service talks through.",
+  },
+  postgres: {
+    demo: "infra",
+    color: "#7dd3fc",
+    icon: "▤",
+    blurb: "One database per service, never shared.",
+  },
+  redis: {
+    demo: "infra",
+    color: "#fca5a5",
+    icon: "▣",
+    blurb: "Backs the cache and the task queue.",
+  },
+};
+
+/**
  * The edges a given visitor action actually traverses.
  *
  * Running a search enters the gateway, reaches search over Kafka, and search
