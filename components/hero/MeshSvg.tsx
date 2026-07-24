@@ -1,12 +1,13 @@
 "use client";
 
 import type { Tier } from "@/lib/capability";
-import { MESH_EDGES, MESH_NODES, NODE_BY_ID } from "@/lib/mesh";
+import { MESH_EDGES, MESH_NODES, NODE_BY_ID, NODE_META } from "@/lib/mesh";
 import { PULSE_MS, useTraffic } from "./TrafficContext";
 
 export type NodeStatus = "up" | "down" | "unknown";
 
-const STATUS_STROKE: Record<NodeStatus, string> = {
+/** The status lamp, matching the 3D scene and the panels. */
+const STATUS_FILL: Record<NodeStatus, string> = {
   up: "var(--color-nominal)",
   down: "var(--color-down)",
   unknown: "var(--color-text-low)",
@@ -84,21 +85,58 @@ export function MeshSvg({
       {MESH_NODES.map((node) => {
         const { px, py, scale } = project(node.x, node.y, node.z);
         const status = statuses[node.id] ?? "unknown";
-        const stroke = STATUS_STROKE[status];
+        // Body colour is the service's identity; the lamp below carries health.
+        const stroke = NODE_META[node.id]?.color ?? "var(--color-text-low)";
         const size = (node.kind === "gateway" ? 13 : 9) * scale;
+        const sw = node.kind === "gateway" ? 2 : 1.4;
+        const shapeStyle = animate ? { transition: "stroke 300ms" } : undefined;
 
         return (
           <g key={node.id}>
-            {/* Square, matching the status lamps elsewhere — nothing here is round. */}
+            {/* Shape encodes kind, mirroring the 3D scene: gateway a diamond,
+                infra a circle, a service a square. Colour stays for status. */}
+            {node.kind === "gateway" ? (
+              <rect
+                x={px - size / 2}
+                y={py - size / 2}
+                width={size}
+                height={size}
+                transform={`rotate(45 ${px} ${py})`}
+                fill="var(--color-void)"
+                stroke={stroke}
+                strokeWidth={sw}
+                style={shapeStyle}
+              />
+            ) : node.kind === "infra" ? (
+              <circle
+                cx={px}
+                cy={py}
+                r={size / 2}
+                fill="var(--color-void)"
+                stroke={stroke}
+                strokeWidth={sw}
+                style={shapeStyle}
+              />
+            ) : (
+              <rect
+                x={px - size / 2}
+                y={py - size / 2}
+                width={size}
+                height={size}
+                fill="var(--color-void)"
+                stroke={stroke}
+                strokeWidth={sw}
+                style={shapeStyle}
+              />
+            )}
+            {/* Status lamp, left of the label — the health channel. */}
             <rect
-              x={px - size / 2}
-              y={py - size / 2}
-              width={size}
-              height={size}
-              fill="var(--color-void)"
-              stroke={stroke}
-              strokeWidth={node.kind === "gateway" ? 2 : 1.4}
-              style={animate ? { transition: "stroke 300ms" } : undefined}
+              x={px - size / 2 - 7}
+              y={py + size / 2 + 8}
+              width={4}
+              height={4}
+              fill={STATUS_FILL[status]}
+              style={shapeStyle}
             />
             <text
               x={px}
@@ -107,11 +145,7 @@ export function MeshSvg({
               className="font-mono"
               fontSize={10 * scale}
               letterSpacing="0.12em"
-              fill={
-                status === "unknown"
-                  ? "var(--color-text-low)"
-                  : "var(--color-text-mid)"
-              }
+              fill="var(--color-text-mid)"
             >
               {node.label}
             </text>
