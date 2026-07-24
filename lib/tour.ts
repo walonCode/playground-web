@@ -42,7 +42,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     nodeId: "chat",
     title: "Send a live message",
-    body: "This is a real WebSocket. Send a message — open a second tab to watch it broadcast between clients instantly.",
+    body: "Two live clients share one room, side by side. Type in either and watch your message cross the socket and appear in the other instantly — no second tab needed.",
   },
   {
     nodeId: null,
