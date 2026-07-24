@@ -11,8 +11,9 @@ import {
   NODE_BY_ID,
   NODE_META,
   type NodeKind,
+  nodeColor,
 } from "@/lib/mesh";
-import { useThemeValue } from "@/lib/theme";
+import { type Theme, useThemeValue } from "@/lib/theme";
 import type { NodeStatus } from "./MeshSvg";
 import { useTraffic } from "./TrafficContext";
 
@@ -30,15 +31,19 @@ const SCENE = {
     ambient: 0.75,
     key: 26,
     bloom: 0.9,
+    // Emissive scale. Dark leans on the glow + bloom; light must not, or the
+    // nodes blow out to near-white and vanish against the pale background.
+    nodeEmissive: 1,
   },
   light: {
-    idleEdge: "#c3c9d2",
+    idleEdge: "#94a0b0",
     fog: "#f6f7f9",
     fogNear: 8,
     fogFar: 19,
-    ambient: 1.35,
-    key: 12,
+    ambient: 0.85,
+    key: 10,
     bloom: 0.35,
+    nodeEmissive: 0.32,
   },
 } as const;
 
@@ -83,6 +88,7 @@ function Node({
   hovered,
   dimmed,
   index,
+  theme,
   onSelect,
   onHover,
 }: {
@@ -92,6 +98,7 @@ function Node({
   hovered: boolean;
   dimmed: boolean;
   index: number;
+  theme: Theme;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }) {
@@ -100,11 +107,8 @@ function Node({
   const appeared = useRef(0);
 
   const status = reading?.status ?? "unknown";
-  const meta = NODE_META[node.id];
-  const identity = useMemo(
-    () => new THREE.Color(meta?.color ?? "#9ba1a9"),
-    [meta?.color],
-  );
+  const hex = nodeColor(node.id, theme);
+  const identity = useMemo(() => new THREE.Color(hex), [hex]);
 
   const base =
     node.kind === "gateway" ? 0.2 : node.kind === "infra" ? 0.14 : 0.13;
@@ -127,12 +131,16 @@ function Node({
     g.scale.setScalar(intro * breathe * focus);
     g.rotation.y += dt * (node.kind === "gateway" ? 0.25 : 0.08);
 
-    // Above 1 so the bloom pass picks it up. Dimmed nodes drop below the
+    // Above 1 so the bloom pass picks it up (dark). Dimmed nodes drop below the
     // threshold entirely and stop glowing, which is what makes a spotlight read.
+    // In light mode the whole thing is scaled down so nodes stay their solid,
+    // darker identity colour rather than washing out to white.
     const rest = status === "down" ? 0.7 : status === "unknown" ? 0.4 : 1.35;
     const pulse = status === "up" ? Math.sin(t * 1.3 + index) * 0.18 : 0;
     const target =
-      (selected || hovered ? 2.4 : rest + pulse) * (dimmed ? 0.22 : 1);
+      (selected || hovered ? 2.4 : rest + pulse) *
+      (dimmed ? 0.22 : 1) *
+      SCENE[theme].nodeEmissive;
     m.emissiveIntensity += (target - m.emissiveIntensity) * Math.min(1, dt * 8);
     m.opacity += ((dimmed ? 0.45 : 1) - m.opacity) * Math.min(1, dt * 8);
   });
@@ -179,6 +187,7 @@ function Node({
         latency={reading?.latency ?? null}
         hidden={dimmed}
         emphasised={selected || hovered}
+        theme={theme}
       />
     </group>
   );
@@ -199,6 +208,7 @@ function NodeLabel({
   latency,
   hidden,
   emphasised,
+  theme,
 }: {
   id: string;
   label: string;
@@ -206,6 +216,7 @@ function NodeLabel({
   latency: number | null;
   hidden: boolean;
   emphasised: boolean;
+  theme: Theme;
 }) {
   const meta = NODE_META[id];
   return (
@@ -221,7 +232,7 @@ function NodeLabel({
       }}
     >
       <div className="flex items-center gap-1.5 border border-line bg-void/85 px-1.5 py-0.5 font-mono text-[9px] whitespace-nowrap backdrop-blur-sm">
-        <span style={{ color: meta?.color }}>{meta?.icon}</span>
+        <span style={{ color: nodeColor(id, theme) }}>{meta?.icon}</span>
         <span
           className="size-1.5 shrink-0"
           style={{ background: STATUS_HEX[status] }}
@@ -254,9 +265,10 @@ function Nodes({
   selectedId,
   hoveredId,
   spotlightId,
+  theme,
   onSelect,
   onHover,
-}: SceneProps) {
+}: SceneProps & { theme: Theme }) {
   useEffect(() => {
     return () => {
       document.body.style.cursor = "";
@@ -274,6 +286,7 @@ function Nodes({
           selected={node.id === selectedId}
           hovered={node.id === hoveredId}
           dimmed={Boolean(spotlightId) && node.id !== spotlightId}
+          theme={theme}
           onSelect={onSelect}
           onHover={onHover}
         />
@@ -289,7 +302,12 @@ function Edges({ theme }: { theme: "dark" | "light" }) {
   const colorAttr = useRef<THREE.BufferAttribute>(null);
 
   const idle = useMemo(() => new THREE.Color(SCENE[theme].idleEdge), [theme]);
-  const action = useMemo(() => new THREE.Color("#f42bb0"), []);
+  // The action fuchsia, per theme — the deep magenta reads on light, the bright
+  // one glows on dark.
+  const action = useMemo(
+    () => new THREE.Color(theme === "light" ? "#a81a7a" : "#f42bb0"),
+    [theme],
+  );
 
   const { positions, colors, order } = useMemo(() => {
     const pos: number[] = [];
@@ -420,7 +438,7 @@ export default function Mesh3d({
       />
 
       <Edges theme={theme} />
-      <Nodes {...props} />
+      <Nodes {...props} theme={theme} />
 
       <OrbitControls
         ref={controls}
@@ -432,18 +450,22 @@ export default function Mesh3d({
       <CameraRig controls={controls} focusId={focusId} />
 
       {/*
-        Selective bloom: the pass keys on materials whose emissive exceeds 1, so
-        only the glowing nodes bloom and the labels and edges stay crisp.
-        mipmapBlur keeps it cheap enough for the `full` tier this only runs on.
+        Selective bloom, dark theme only. The pass keys on materials whose
+        emissive exceeds 1, so only the glowing nodes bloom and the labels and
+        edges stay crisp. On a near-white light background the same pass washes
+        the whole frame out — so light mode renders the scene directly, and the
+        nodes read as solid saturated shapes instead of glows.
       */}
-      <EffectComposer enableNormalPass={false}>
-        <Bloom
-          intensity={scene.bloom}
-          luminanceThreshold={1}
-          luminanceSmoothing={0.15}
-          mipmapBlur
-        />
-      </EffectComposer>
+      {theme === "dark" && (
+        <EffectComposer enableNormalPass={false}>
+          <Bloom
+            intensity={scene.bloom}
+            luminanceThreshold={1}
+            luminanceSmoothing={0.15}
+            mipmapBlur
+          />
+        </EffectComposer>
+      )}
     </Canvas>
   );
 }

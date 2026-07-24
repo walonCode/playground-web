@@ -16,6 +16,7 @@
   --color-panel: var(--c-panel);
   --color-line: var(--c-line);
   --color-line-bright: var(--c-line-bright);
+  --color-mesh-edge: var(--c-mesh-edge);
 
   --color-text-hi: var(--c-text-hi);
   --color-text-mid: var(--c-text-mid);
@@ -45,6 +46,7 @@
   --c-panel: #0f1114;
   --c-line: #1e2227;
   --c-line-bright: #2c323a;
+  --c-mesh-edge: #2f3742; /* connecting lines — brighter than a panel border */
 
   --c-text-hi: #e8eaed;
   --c-text-mid: #9ba1a9;
@@ -73,6 +75,7 @@
   --c-panel: #ffffff;
   --c-line: #e3e6ea;
   --c-line-bright: #cbd1d9;
+  --c-mesh-edge: #94a0b0; /* connecting lines need real contrast on near-white */
 
   --c-text-hi: #0c0e12;
   --c-text-mid: #4b525c;

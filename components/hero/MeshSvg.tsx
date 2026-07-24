@@ -1,7 +1,8 @@
 "use client";
 
 import type { Tier } from "@/lib/capability";
-import { MESH_EDGES, MESH_NODES, NODE_BY_ID, NODE_META } from "@/lib/mesh";
+import { MESH_EDGES, MESH_NODES, NODE_BY_ID, nodeColor } from "@/lib/mesh";
+import { useThemeValue } from "@/lib/theme";
 import { PULSE_MS, useTraffic } from "./TrafficContext";
 
 export type NodeStatus = "up" | "down" | "unknown";
@@ -42,6 +43,7 @@ export function MeshSvg({
   tier: Tier;
 }) {
   const { pulses } = useTraffic();
+  const theme = useThemeValue();
   const animate = tier !== "static";
   const litEdges = new Set(pulses.map((p) => p.edgeId));
 
@@ -70,9 +72,9 @@ export function MeshSvg({
             y1={a.py}
             x2={b.px}
             y2={b.py}
-            stroke={lit ? "var(--color-action)" : "var(--color-line)"}
+            stroke={lit ? "var(--color-action)" : "var(--color-mesh-edge)"}
             strokeWidth={lit ? 1.8 : 1}
-            opacity={lit ? 1 : 0.55}
+            opacity={lit ? 1 : 0.9}
             style={
               animate
                 ? { transition: `stroke ${PULSE_MS / 3}ms, opacity 200ms` }
@@ -86,7 +88,7 @@ export function MeshSvg({
         const { px, py, scale } = project(node.x, node.y, node.z);
         const status = statuses[node.id] ?? "unknown";
         // Body colour is the service's identity; the lamp below carries health.
-        const stroke = NODE_META[node.id]?.color ?? "var(--color-text-low)";
+        const stroke = nodeColor(node.id, theme);
         const size = (node.kind === "gateway" ? 13 : 9) * scale;
         const sw = node.kind === "gateway" ? 2 : 1.4;
         const shapeStyle = animate ? { transition: "stroke 300ms" } : undefined;

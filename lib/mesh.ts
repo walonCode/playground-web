@@ -164,14 +164,28 @@ export interface NodeMeta {
    * you are looking at. Now colour names the service and the lamp reports it.
    */
   color: string;
+  /**
+   * The same identity, darkened for the light theme. The dark hues (pale blues,
+   * near-white gateway) are chosen to glow on a black scene and simply vanish on
+   * a near-white one, so light mode gets its own visible variant of each.
+   */
+  colorLight: string;
   /** A glyph so a node is identifiable without reading the label. */
   icon: string;
+}
+
+/** The identity colour for a node in the active theme. */
+export function nodeColor(id: string, theme: "dark" | "light"): string {
+  const meta = NODE_META[id];
+  if (!meta) return theme === "light" ? "#475569" : "#9ba1a9";
+  return theme === "light" ? meta.colorLight : meta.color;
 }
 
 export const NODE_META: Record<string, NodeMeta> = {
   gateway: {
     demo: "status",
     color: "#e8eaed",
+    colorLight: "#334155",
     icon: "◈",
     blurb:
       "The single public door. Every request enters here and fans out over Kafka.",
@@ -179,6 +193,7 @@ export const NODE_META: Record<string, NodeMeta> = {
   search: {
     demo: "search-cache",
     color: "#06b6d4",
+    colorLight: "#0891b2",
     icon: "⌕",
     blurb:
       "Full-text search over 60k documents, cached in Redis. Try the cache demo.",
@@ -186,6 +201,7 @@ export const NODE_META: Record<string, NodeMeta> = {
   cache: {
     demo: "search-cache",
     color: "#fb923c",
+    colorLight: "#ea580c",
     icon: "⚡",
     blurb:
       "The Redis cache search reads through. Evict it and watch search slow down.",
@@ -193,6 +209,7 @@ export const NODE_META: Record<string, NodeMeta> = {
   task: {
     demo: "task",
     color: "#f59e0b",
+    colorLight: "#d97706",
     icon: "⚙",
     blurb:
       "Your todo list, where each item is a real queue job — run one and watch it retry or dead-letter.",
@@ -200,6 +217,7 @@ export const NODE_META: Record<string, NodeMeta> = {
   payment: {
     demo: "payment",
     color: "#f43f5e",
+    colorLight: "#e11d48",
     icon: "◉",
     blurb:
       "A simulated payment saga with compensating steps. No real money moves.",
@@ -207,37 +225,43 @@ export const NODE_META: Record<string, NodeMeta> = {
   chat: {
     demo: "chat",
     color: "#10b981",
+    colorLight: "#059669",
     icon: "◈",
     blurb:
-      "Real-time rooms over WebSockets. Send a message and watch it broadcast.",
+      "Real-time rooms over WebSockets. Two live clients, one room — message one from the other.",
   },
   auth: {
     demo: "status",
     color: "#8b5cf6",
+    colorLight: "#7c3aed",
     icon: "⚿",
     blurb: "Better Auth — email/password and JWT, verified at the gateway.",
   },
   lifecycle: {
     demo: "status",
     color: "#6366f1",
+    colorLight: "#4f46e5",
     icon: "◐",
     blurb: "The health service that reports whether this box is usable.",
   },
   kafka: {
     demo: "infra",
     color: "#94a3b8",
+    colorLight: "#475569",
     icon: "≋",
     blurb: "The broker every service talks through.",
   },
   postgres: {
     demo: "infra",
     color: "#7dd3fc",
+    colorLight: "#0369a1",
     icon: "▤",
     blurb: "One database per service, never shared.",
   },
   redis: {
     demo: "infra",
     color: "#fca5a5",
+    colorLight: "#dc2626",
     icon: "▣",
     blurb: "Backs the cache and the task queue.",
   },

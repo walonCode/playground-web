@@ -1,6 +1,7 @@
 "use client";
 
-import { MESH_NODES, NODE_META } from "@/lib/mesh";
+import { MESH_NODES, nodeColor } from "@/lib/mesh";
+import { useThemeValue } from "@/lib/theme";
 
 /**
  * Teaches the three channels the scene uses, none of which overlap:
@@ -9,6 +10,7 @@ import { MESH_NODES, NODE_META } from "@/lib/mesh";
  * becomes legible.
  */
 export function Legend() {
+  const theme = useThemeValue();
   const services = MESH_NODES.filter((n) => n.kind === "service");
 
   return (
@@ -37,7 +39,6 @@ export function Legend() {
         </span>
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {services.map((node) => {
-            const meta = NODE_META[node.id];
             return (
               <span
                 key={node.id}
@@ -45,7 +46,7 @@ export function Legend() {
               >
                 <span
                   className="size-2"
-                  style={{ background: meta?.color }}
+                  style={{ background: nodeColor(node.id, theme) }}
                   aria-hidden="true"
                 />
                 <span className="text-text-mid">{node.label}</span>
