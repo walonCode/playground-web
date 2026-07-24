@@ -1,64 +1,99 @@
 @import "tailwindcss";
 
 /*
- * Glass Box tokens.
+ * Glass Box tokens, theme-aware.
  *
- * Four hues, one job each. Cyan means nominal AND live value — a number ticking
- * in cyan IS the healthy state, so the two never need separate colours. Fuchsia
- * is reserved for what the visitor caused and is never a status.
+ * Two channels carry meaning and never overlap: COLOUR is status (cyan nominal,
+ * amber degraded, red down) plus fuchsia for the visitor's own action; SHAPE is
+ * what a node is (gateway / service / infra). A visitor learns each once.
  *
- * Invariant: status contexts never use fuchsia, fuchsia contexts never use
- * status hues. A visitor learns the language once and it holds everywhere.
- */
-@theme {
-  /* Neutrals. Cool cast so cyan and fuchsia read as emitted light, not paint. */
-  --color-void: #08090b;
-  --color-panel: #0f1114;
-  --color-line: #1e2227;
-  --color-line-bright: #2c323a;
-
-  --color-text-hi: #e8eaed;
-  --color-text-mid: #9ba1a9;
-  /*
-   * 5.00:1 on void. The obvious pick here is a dimmer grey, but text-low
-   * carries the 10–11px eyebrows and pending values, and small type is exactly
-   * where AA stops being a formality. Measured in the design lab, not guessed.
-   */
-  --color-text-low: #79808a;
-
-  /* Status triplet, used identically in every panel. */
-  --color-nominal: #34d8e8;
-  --color-degraded: #f5a524;
-  --color-down: #ff4d4d;
-
-  /* Causality — the visitor's own action. Never a status. */
-  --color-action: #f42bb0;
-
-  /* Dim companions for fills and trails sitting behind a bright stroke. */
-  --color-nominal-dim: #0e3d44;
-  --color-degraded-dim: #3d2f10;
-  --color-down-dim: #3d1717;
-  --color-action-dim: #3d0d2d;
-
-  /* Hairline flat: nothing in this system is rounded. */
-  --radius-panel: 0px;
-}
-
-/*
- * `inline` so the utilities resolve against the font variables next/font puts
- * on <html>. The theme key and the font variable must not share a name, or the
- * declaration becomes self-referential and silently falls back.
+ * The utilities below resolve to `--c-*` variables, which swap between the dark
+ * and light palettes on `:root[data-theme]`. Component classes never name a raw
+ * hex, so every surface themes for free.
  */
 @theme inline {
+  --color-void: var(--c-void);
+  --color-panel: var(--c-panel);
+  --color-line: var(--c-line);
+  --color-line-bright: var(--c-line-bright);
+
+  --color-text-hi: var(--c-text-hi);
+  --color-text-mid: var(--c-text-mid);
+  --color-text-low: var(--c-text-low);
+
+  --color-nominal: var(--c-nominal);
+  --color-degraded: var(--c-degraded);
+  --color-down: var(--c-down);
+  --color-action: var(--c-action);
+
+  --color-nominal-dim: var(--c-nominal-dim);
+  --color-degraded-dim: var(--c-degraded-dim);
+  --color-down-dim: var(--c-down-dim);
+  --color-action-dim: var(--c-action-dim);
+
   --font-display: var(--font-archivo);
   --font-sans: var(--font-plex-sans);
   --font-mono: var(--font-plex-mono);
+
+  --radius-panel: 0px;
+}
+
+/* Dark is the default palette — the control-room look the site was built for. */
+:root,
+:root[data-theme="dark"] {
+  --c-void: #08090b;
+  --c-panel: #0f1114;
+  --c-line: #1e2227;
+  --c-line-bright: #2c323a;
+
+  --c-text-hi: #e8eaed;
+  --c-text-mid: #9ba1a9;
+  --c-text-low: #79808a; /* 5.0:1 on void — small mono labels must clear AA */
+
+  --c-nominal: #34d8e8;
+  --c-degraded: #f5a524;
+  --c-down: #ff4d4d;
+  --c-action: #f42bb0;
+
+  --c-nominal-dim: #0e3d44;
+  --c-degraded-dim: #3d2f10;
+  --c-down-dim: #3d1717;
+  --c-action-dim: #3d0d2d;
+
+  color-scheme: dark;
+}
+
+/*
+ * Light palette. The accent hues are darkened so the status language survives on
+ * a near-white surface — cyan-at-#34d8e8 would vanish, so nominal becomes a deep
+ * teal. Same meaning, legible ground.
+ */
+:root[data-theme="light"] {
+  --c-void: #f6f7f9;
+  --c-panel: #ffffff;
+  --c-line: #e3e6ea;
+  --c-line-bright: #cbd1d9;
+
+  --c-text-hi: #0c0e12;
+  --c-text-mid: #4b525c;
+  --c-text-low: #5f6670; /* 4.7:1 on void */
+
+  --c-nominal: #0e7490;
+  --c-degraded: #b45309;
+  --c-down: #c81e1e;
+  --c-action: #a81a7a;
+
+  --c-nominal-dim: #d3eef3;
+  --c-degraded-dim: #f5e7d0;
+  --c-down-dim: #f6d9d9;
+  --c-action-dim: #f3d8ea;
+
+  color-scheme: light;
 }
 
 @layer base {
   html {
     background: var(--color-void);
-    color-scheme: dark;
   }
 
   body {
@@ -70,10 +105,9 @@
 
   ::selection {
     background: var(--color-action);
-    color: #fff;
+    color: var(--color-void);
   }
 
-  /* Keyboard focus is part of the quality floor, not an afterthought. */
   :focus-visible {
     outline: 2px solid var(--color-nominal);
     outline-offset: 2px;
@@ -81,21 +115,46 @@
 }
 
 @layer utilities {
-  /*
-   * Every number here is a real measurement and measurements are read in
-   * columns. Tabular figures stop digits jittering as values update.
-   */
   .tabular {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
   }
 
-  /* Archivo carries a width axis; the display face is set wide and tight. */
   .display-wide {
     font-family: var(--font-display);
     font-variation-settings: "wdth" 112;
     letter-spacing: -0.02em;
     text-transform: uppercase;
+  }
+
+  /* Intro reveal: nodes and panels rise and fade in on first paint. */
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .animate-rise {
+    animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Demo overlay slides in from the docked edge. */
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .animate-slide-in {
+    animation: slide-in-right 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 }
 

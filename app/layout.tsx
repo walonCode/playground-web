@@ -68,7 +68,22 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${archivo.variable} ${plexSans.variable} ${plexMono.variable} h-full`}
+      suppressHydrationWarning
     >
+      <head>
+        {/*
+         * Sets the theme before first paint so there is no flash of the wrong
+         * palette. Reads the saved choice, else the OS preference; defaults to
+         * dark. Inline and synchronous on purpose — a deferred script would
+         * paint dark first and swap.
+         */}
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: this is a trusted, static string with no user input, and it must run before hydration.
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full">{children}</body>
     </html>
   );
