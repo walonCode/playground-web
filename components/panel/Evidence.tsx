@@ -73,17 +73,3 @@ export function CopyCurl({ command }: { command: string }) {
     </div>
   );
 }
-
-/** Points a claim at the code that answers it. */
-export function SourceLink({ href, label }: { href: string; label: string }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="font-mono text-[11px] text-text-low underline decoration-line-bright underline-offset-4 transition-colors hover:text-nominal"
-    >
-      {label}
-    </a>
-  );
-}

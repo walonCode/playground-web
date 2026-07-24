@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePulse } from "@/components/hero/TrafficContext";
-import { CopyCurl, SourceLink, WireTrace } from "@/components/panel/Evidence";
+import { CopyCurl, WireTrace } from "@/components/panel/Evidence";
 import { Panel, PanelSection } from "@/components/panel/Panel";
 import { Readout, ReadoutGrid } from "@/components/panel/Readout";
 import type { Status } from "@/components/panel/StatusDot";
@@ -15,7 +15,6 @@ import {
   paymentCheckout,
   paymentInstruments,
   paymentRefund,
-  REPO_BASE,
   type StepStatus,
 } from "@/lib/api";
 
@@ -218,10 +217,6 @@ export function PaymentPanel() {
               idempotencyKey: "demo-key",
             },
           })}
-        />
-        <SourceLink
-          href={`${REPO_BASE}/apps/payment/src/payment.service.ts`}
-          label="payment.service.ts"
         />
       </PanelSection>
     </Panel>

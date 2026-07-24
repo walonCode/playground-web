@@ -8,14 +8,13 @@ import {
   useState,
 } from "react";
 import { usePulse } from "@/components/hero/TrafficContext";
-import { CopyCurl, SourceLink, WireTrace } from "@/components/panel/Evidence";
+import { CopyCurl, WireTrace } from "@/components/panel/Evidence";
 import { Panel, PanelSection } from "@/components/panel/Panel";
 import { Readout, ReadoutGrid } from "@/components/panel/Readout";
 import type { Status } from "@/components/panel/StatusDot";
 import {
   ApiError,
   curlFor,
-  REPO_BASE,
   type TaskDto,
   type TaskStatsResponse,
   type TaskStatus,
@@ -299,10 +298,6 @@ export function TaskPanel() {
             method: "POST",
             body: { title: "ship it" },
           })}
-        />
-        <SourceLink
-          href={`${REPO_BASE}/apps/task/src/task.service.ts`}
-          label="task.service.ts"
         />
       </PanelSection>
     </Panel>
