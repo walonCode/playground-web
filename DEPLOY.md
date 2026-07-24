@@ -52,6 +52,65 @@ browser hits the gateway directly and skips the proxy. Run the backend alongside
 cd ../api && pnpm infra:up && pnpm dev:all
 ```
 
+## Wake / sleep — arming the real EC2 start/stop
+
+The box the demos run on sleeps when idle to save money. The control that wakes
+it lives here in the Next app (Vercel, always-on) — never on EC2, because the
+thing that powers a box on cannot run on the box it powers.
+
+It ships **complete and inert**: state is tracked and the UI works, but the
+`StartInstances`/`StopInstances` calls are dry-run until you arm them. Arming is
+the only remaining step, and it is all configuration:
+
+1. **Upstash** — create a free Redis database, copy `UPSTASH_REDIS_REST_URL` and
+   `UPSTASH_REDIS_REST_TOKEN` into the Vercel env. (Required in production so the
+   state survives across serverless invocations; dev uses in-memory.)
+2. **IAM** — create a user with the policy below, scoped to your one instance.
+   Put its `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` and `AWS_REGION` +
+   `EC2_INSTANCE_ID` into the Vercel env.
+3. **Arm it** — set `AWS_LIVE=true`. Until this is exactly `true`, no AWS call is
+   ever made, even with everything else set.
+4. **Protect the cron** — set `CRON_SECRET`; Vercel sends it to the scheduled
+   sleep route as a bearer token. The cron itself is already declared in
+   `vercel.json` (every 15 minutes).
+
+### IAM policy (least privilege)
+
+`StartInstances`/`StopInstances` are scoped to exactly one instance ARN.
+`DescribeInstances` cannot be resource-scoped by IAM, so it is granted read-only
+and pinned to the region.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GlassBoxStartStop",
+      "Effect": "Allow",
+      "Action": ["ec2:StartInstances", "ec2:StopInstances"],
+      "Resource": "arn:aws:ec2:<region>:<account-id>:instance/<instance-id>"
+    },
+    {
+      "Sid": "GlassBoxDescribe",
+      "Effect": "Allow",
+      "Action": "ec2:DescribeInstances",
+      "Resource": "*",
+      "Condition": { "StringEquals": { "ec2:Region": "<region>" } }
+    }
+  ]
+}
+```
+
+### The state machine
+
+`asleep → waking → awake → sleeping → asleep`. Wake is idempotent and the
+anti-spam protection is the state check, not the frontend: two visitors clicking
+wake in the same second race on an atomic compare-and-set, and only the winner
+calls `StartInstances`. `waking` flips to `awake` **only** once
+`GET /api/health/deep` genuinely reports ready — reporting awake early is the
+one sure way to show a visitor a broken demo. The cron stops the box after
+`DEMO_IDLE_MS` of no real interaction.
+
 ## Build
 
 ```bash
