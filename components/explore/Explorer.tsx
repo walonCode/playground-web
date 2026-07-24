@@ -5,15 +5,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AuthControl } from "@/components/auth/AuthControl";
 import type { Reading } from "@/components/hero/Mesh3d";
 import { MeshSvg } from "@/components/hero/MeshSvg";
+import { usePulse } from "@/components/hero/TrafficContext";
 import { deepHealth, demoTouch, servicesStatus } from "@/lib/api";
 import { useCapabilityTier, useIsActive } from "@/lib/capability";
-import { MESH_NODES, NODE_META } from "@/lib/mesh";
+import { MESH_NODES, NODE_META, nodeColor } from "@/lib/mesh";
+import { useThemeValue } from "@/lib/theme";
 import { TOUR_STEPS } from "@/lib/tour";
+import { WALK_STEP_MS, WALKTHROUGH } from "@/lib/walkthrough";
 import { Legend } from "./Legend";
 import { NodeOverlay } from "./NodeOverlay";
 import { PowerControl } from "./PowerControl";
 import { ThemeToggle } from "./ThemeToggle";
 import { Tour } from "./Tour";
+import { WalkthroughHud } from "./Walkthrough";
 
 /** ssr:false only works inside a Client Component; this is that boundary. */
 const Mesh3d = dynamic(() => import("@/components/hero/Mesh3d"), {
@@ -35,6 +39,7 @@ type Readings = Record<string, Reading>;
  */
 export function Explorer() {
   const tier = useCapabilityTier();
+  const pulse = usePulse();
   const ref = useRef<HTMLDivElement>(null);
   const active = useIsActive(ref);
 
@@ -43,6 +48,8 @@ export function Explorer() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   // null when the tour is not running, else the current step index.
   const [tourStep, setTourStep] = useState<number | null>(null);
+  // The per-service 3D walkthrough: which node is narrating, and which hop.
+  const [walk, setWalk] = useState<{ node: string; step: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +89,7 @@ export function Explorer() {
       if (e.key === "Escape") {
         setSelectedId(null);
         setTourStep(null);
+        setWalk(null);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -103,11 +111,36 @@ export function Explorer() {
 
   // Empty string comes from a click on empty 3D space; treat it as deselect.
   // Opening a real demo counts as activity, so the idle timer resets.
-  const select = useCallback((id: string) => {
-    setSelectedId(id || null);
-    const demo = id ? NODE_META[id]?.demo : undefined;
-    if (demo && demo !== "infra" && demo !== "status") demoTouch();
-  }, []);
+  const select = useCallback(
+    (id: string) => {
+      setSelectedId(id || null);
+      const demo = id ? NODE_META[id]?.demo : undefined;
+      if (demo && demo !== "infra" && demo !== "status") demoTouch();
+      // Only the interactive services have a walkthrough, and it only plays in
+      // the 3D tier — on the flat fallback there is no scene to narrate.
+      setWalk(
+        id && WALKTHROUGH[id] && tier === "full" ? { node: id, step: 0 } : null,
+      );
+    },
+    [tier],
+  );
+
+  // Drive the walkthrough: light the current hop's real edge, hold, then advance.
+  useEffect(() => {
+    if (!walk) return;
+    const steps = WALKTHROUGH[walk.node]?.steps;
+    if (!steps || walk.step >= steps.length) {
+      setWalk(null);
+      return;
+    }
+    const edge = steps[walk.step].edge;
+    if (edge) pulse([edge]);
+    const timer = window.setTimeout(
+      () => setWalk((w) => (w ? { ...w, step: w.step + 1 } : null)),
+      WALK_STEP_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [walk, pulse]);
 
   const upCount = Object.values(readings).filter(
     (r) => r.status === "up",
@@ -163,13 +196,16 @@ export function Explorer() {
         </h1>
         <p className="max-w-md text-sm leading-relaxed text-text-mid">
           {tier === "full"
-            ? "Drag to orbit. Click a node to open its live demo."
+            ? "Drag to orbit. Click a service to walk through how it works, then drive it live."
             : "Tap a service to open its live demo."}
         </p>
         {tourStep === null && (
           <button
             type="button"
-            onClick={() => setTourStep(0)}
+            onClick={() => {
+              setWalk(null);
+              setTourStep(0);
+            }}
             className="pointer-events-auto mt-2 w-fit border border-nominal px-3 py-1.5 font-mono text-[11px] tracking-[0.16em] text-nominal uppercase transition-colors hover:bg-nominal-dim"
           >
             ▸ take the tour
@@ -196,15 +232,35 @@ export function Explorer() {
       {selectedId && (
         <div
           key={selectedId}
-          className="animate-slide-in absolute inset-y-0 right-0 z-10 w-full border-l border-line bg-void/95 backdrop-blur-sm sm:w-[26rem]"
+          className={`animate-slide-in absolute inset-y-0 right-0 z-10 w-full border-l border-line bg-void/95 backdrop-blur-sm ${
+            NODE_META[selectedId]?.demo === "chat"
+              ? "sm:w-[34rem]"
+              : "sm:w-[26rem]"
+          }`}
         >
           <NodeOverlay
             nodeId={selectedId}
-            reading={readings[selectedId]}
-            onClose={() => setSelectedId(null)}
+            onClose={() => {
+              setSelectedId(null);
+              setWalk(null);
+            }}
           />
         </div>
       )}
+
+      {/* The little 3D walkthrough, narrating the open service's real request
+          path hop by hop. Only while its node is the one on screen. */}
+      {walk &&
+        selectedId === walk.node &&
+        WALKTHROUGH[walk.node]?.steps[walk.step] && (
+          <WalkthroughHud
+            nodeId={walk.node}
+            step={walk.step}
+            total={WALKTHROUGH[walk.node].steps.length}
+            caption={WALKTHROUGH[walk.node].steps[walk.step].caption}
+            onSkip={() => setWalk(null)}
+          />
+        )}
 
       {tourStep !== null && (
         <Tour
@@ -216,6 +272,7 @@ export function Explorer() {
           onExit={() => {
             setTourStep(null);
             setSelectedId(null);
+            setWalk(null);
           }}
         />
       )}
@@ -238,6 +295,7 @@ function FlatExplorer({
   onSelect: (id: string) => void;
   tier: "reduced" | "static";
 }) {
+  const theme = useThemeValue();
   const statuses = Object.fromEntries(
     Object.entries(readings).map(([k, v]) => [k, v.status]),
   );
@@ -264,7 +322,7 @@ function FlatExplorer({
                 }`}
               >
                 <span className="flex min-w-0 items-center gap-2">
-                  <span style={{ color: NODE_META[node.id]?.color }}>
+                  <span style={{ color: nodeColor(node.id, theme) }}>
                     {NODE_META[node.id]?.icon}
                   </span>
                   <span className="truncate tracking-[0.12em] uppercase">
