@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { usePulse } from "@/components/hero/TrafficContext";
-import { CopyCurl, SourceLink, WireTrace } from "@/components/panel/Evidence";
+import { CopyCurl, WireTrace } from "@/components/panel/Evidence";
 import { Panel, PanelSection } from "@/components/panel/Panel";
 import { Readout, ReadoutGrid } from "@/components/panel/Readout";
 import { type Sample, Sparkline } from "@/components/panel/Sparkline";
@@ -19,10 +19,12 @@ import {
   cacheEvict,
   cacheStats,
   curlFor,
-  REPO_BASE,
   type SearchQueryResponse,
+  type SearchStatsResponse,
   search,
+  searchGenerate,
   searchPath,
+  searchStats,
 } from "@/lib/api";
 import { TRAFFIC_PATHS } from "@/lib/mesh";
 
@@ -39,6 +41,9 @@ export function SearchCachePanel() {
 
   const [result, setResult] = useState<SearchQueryResponse | null>(null);
   const [stats, setStats] = useState<CacheStatsResponse | null>(null);
+  const [corpus, setCorpus] = useState<SearchStatsResponse | null>(null);
+  const [seeding, setSeeding] = useState(false);
+  const [seedNote, setSeedNote] = useState<string | null>(null);
   const [samples, setSamples] = useState<Sample[]>([]);
   // Monotonic, so each bar keeps its identity as the window slides.
   const nextSampleId = useRef(0);
@@ -60,9 +65,39 @@ export function SearchCachePanel() {
     }
   }, []);
 
+  const refreshCorpus = useCallback(async () => {
+    try {
+      setCorpus(await searchStats());
+    } catch {
+      setCorpus(null);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshStats();
-  }, [refreshStats]);
+    void refreshCorpus();
+  }, [refreshStats, refreshCorpus]);
+
+  async function runSeed() {
+    if (seeding) return;
+    setSeeding(true);
+    setError(null);
+    setSeedNote(null);
+    pulse(["gateway→search"]);
+    try {
+      const res = await searchGenerate();
+      setSeedNote(
+        res.inserted > 0
+          ? `seeded ${res.inserted} documents · search them now`
+          : "corpus is at capacity",
+      );
+      await refreshCorpus();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "seeding failed");
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   async function runSearch(event?: FormEvent) {
     event?.preventDefault();
@@ -168,6 +203,41 @@ export function SearchCachePanel() {
       </PanelSection>
 
       <PanelSection>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="font-mono text-[11px] text-text-mid">
+            corpus{" "}
+            <span className="tabular text-text-hi">
+              {corpus ? corpus.totalDocuments.toLocaleString() : "—"}
+            </span>{" "}
+            docs
+            {corpus && (
+              <span className="text-text-low">
+                {" · "}
+                {corpus.seededDocuments.toLocaleString()} seeded ·{" "}
+                {corpus.generatedDocuments.toLocaleString()}/{corpus.capacity}{" "}
+                generated
+              </span>
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={runSeed}
+            disabled={seeding || corpus?.canGenerateMore === false}
+            className="border border-line-bright px-3 py-1.5 font-mono text-[10px] tracking-[0.14em] text-text-hi uppercase transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:text-text-low"
+          >
+            {seeding
+              ? "seeding…"
+              : corpus?.canGenerateMore === false
+                ? "at capacity"
+                : "seed documents"}
+          </button>
+        </div>
+        {seedNote && (
+          <p className="mt-2 font-mono text-[11px] text-nominal">{seedNote}</p>
+        )}
+      </PanelSection>
+
+      <PanelSection>
         <ReadoutGrid>
           <Readout
             label="took"
@@ -256,16 +326,6 @@ export function SearchCachePanel() {
           failed={Boolean(error)}
         />
         <CopyCurl command={curlFor(path)} />
-        <div className="flex flex-wrap gap-x-5 gap-y-1">
-          <SourceLink
-            href={`${REPO_BASE}/apps/search/src/search.service.ts`}
-            label="search.service.ts"
-          />
-          <SourceLink
-            href={`${REPO_BASE}/apps/cache/src/cache.service.ts`}
-            label="cache.service.ts"
-          />
-        </div>
       </PanelSection>
     </Panel>
   );

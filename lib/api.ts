@@ -34,10 +34,6 @@ export const PUBLIC_API_BASE = /^https?:\/\//.test(API_BASE)
   ? API_BASE
   : `${SITE_URL}${API_BASE}`;
 
-/** Where the source lives, for the evidence links on each panel. */
-export const REPO_BASE =
-  "https://github.com/walonCode/playground-api/blob/main";
-
 export interface SearchHit {
   id: string;
   title: string;
@@ -56,6 +52,24 @@ export interface SearchQueryResponse {
   /** Wall-clock ms for the whole lookup — the number the demo turns on. */
   tookMs: number;
   cacheKey: string;
+}
+
+export interface SearchStatsResponse {
+  totalDocuments: number;
+  seededDocuments: number;
+  generatedDocuments: number;
+  /** The cap on visitor-generated rows; the seed button locks at it. */
+  capacity: number;
+  canGenerateMore: boolean;
+}
+
+export interface SearchGenerateResponse {
+  inserted: number;
+  generatedTotal: number;
+  capacity: number;
+  canGenerateMore: boolean;
+  /** Cache keys dropped because the corpus changed underneath them. */
+  evictedKeys: number;
 }
 
 export interface CacheStatsResponse {
@@ -198,6 +212,22 @@ export function searchPath({ q, limit, skipCache }: SearchArgs): string {
 
 export function search(args: SearchArgs): Promise<SearchQueryResponse> {
   return request<SearchQueryResponse>(searchPath(args));
+}
+
+/** How large the corpus is, split into the seeded baseline and visitor rows. */
+export function searchStats(): Promise<SearchStatsResponse> {
+  return request<SearchStatsResponse>("/search/stats");
+}
+
+/** Seeds more searchable documents into the corpus, then searches over them. */
+export function searchGenerate(
+  count?: number,
+): Promise<SearchGenerateResponse> {
+  return request<SearchGenerateResponse>("/search/generate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(count !== undefined ? { count } : {}),
+  });
 }
 
 /** All seven services in one round trip, for the mesh poll. */
