@@ -2,6 +2,7 @@
 
 import { MeshSvg } from "@/components/hero/MeshSvg";
 import { TrafficProvider } from "@/components/hero/TrafficContext";
+import { SCOPES } from "@/lib/topology";
 
 /**
  * A walk through the runtime, for someone who will never open the repo.
@@ -63,8 +64,8 @@ export function Architecture() {
         <div className="bg-void p-4">
           {/* Static tier: this is a reference diagram, not a live readout. */}
           <TrafficProvider>
-            <div className="aspect-[16/10] w-full">
-              <MeshSvg statuses={ALL_UP} tier="static" />
+            <div className="aspect-16/10 w-full">
+              <MeshSvg scope={SCOPES.mesh} statuses={ALL_UP} tier="static" />
             </div>
           </TrafficProvider>
         </div>
