@@ -1,13 +1,18 @@
 /**
- * The guided tour — a scripted path through the demos so a visitor is never
- * dropped into a free 3D scene wondering what to do.
+ * The guided tour — a scripted descent through the whole deployment so a visitor
+ * is never dropped into a free 3D scene wondering what to do.
  *
- * Each step focuses a node (the camera flies there, the rest dims) and, when the
- * node has a demo, opens it. The copy tells the visitor exactly what to click;
- * the tour drives the framing, they drive the action.
+ * Each step names a scope and (optionally) a node to spotlight. The explorer
+ * flies to that scope, focuses the node, and opens its demo when it has one; the
+ * copy tells the visitor exactly what to try. The tour drives the framing, they
+ * drive the action.
  */
+import type { ScopeId } from "./topology";
+
 export interface TourStep {
-  /** Node to spotlight and focus. null keeps the whole mesh in view. */
+  /** Which level of the map this step lives at. */
+  scope: ScopeId;
+  /** Node to spotlight and focus. null keeps the whole scope in view. */
   nodeId: string | null;
   title: string;
   body: string;
@@ -15,38 +20,63 @@ export interface TourStep {
 
 export const TOUR_STEPS: TourStep[] = [
   {
-    nodeId: "gateway",
-    title: "Wake the box",
-    body: "The demos run on one EC2 box that sleeps when idle. If it says asleep, hit Wake (top right) and watch it come up — the state only flips to awake once a real health check passes.",
+    scope: "root",
+    nodeId: "aws",
+    title: "The whole thing",
+    body: "Two platforms. AWS runs the server on one EC2 box; Vercel runs this web app. The tour flies you into each — you can also click any node yourself.",
   },
   {
+    scope: "aws",
+    nodeId: "ec2",
+    title: "Into AWS",
+    body: "A request resolves through Route 53, meets the load balancer and its TLS cert, and lands on one EC2 box. That box is where everything runs.",
+  },
+  {
+    scope: "ec2",
+    nodeId: "gateway",
+    title: "Inside the box",
+    body: "PM2 keeps the Node apps alive; Docker runs Kafka, Postgres and Redis. The gateway is the one public door into the services.",
+  },
+  {
+    scope: "mesh",
     nodeId: "search",
     title: "Run a search",
-    body: "This searches 60,000 documents. Type a query and hit Run — note the time and that it came from Redis.",
+    body: "This is the service mesh. Search 60,000 documents — note the time, and that it came from Redis.",
   },
   {
+    scope: "mesh",
     nodeId: "cache",
     title: "Drop the cache",
-    body: "Hit Evict, then run the exact same search again. It's slower now — it had to reach Postgres instead of Redis. That gap is the whole point.",
+    body: "Evict, then run the same search again. It's slower now — it had to reach Postgres instead of Redis. That gap is the whole point.",
   },
   {
+    scope: "mesh",
     nodeId: "task",
-    title: "Add a todo, then run it",
-    body: "Add a todo — it is yours, tied to your account. Hit run and it becomes a real BullMQ job: watch it queue, run, and complete. Tick the failure box first to see retries climb and the job dead-letter.",
+    title: "Queue a job",
+    body: "Add a todo and run it — it becomes a real BullMQ job. Tick the failure box first to watch it retry and dead-letter.",
   },
   {
+    scope: "mesh",
     nodeId: "payment",
     title: "Run a payment saga",
-    body: "Pick a test card and checkout. Choose a failing card to watch the saga compensate — undoing the steps that already ran. All simulated.",
+    body: "Checkout with a failing card to watch the saga compensate — undoing the steps that already ran. All simulated.",
   },
   {
+    scope: "mesh",
     nodeId: "chat",
     title: "Send a live message",
-    body: "Two live clients share one room, side by side. Type in either and watch your message cross the socket and appear in the other instantly — no second tab needed.",
+    body: "Two live clients share one room. Type in either and watch it appear in the other instantly, over a real WebSocket.",
   },
   {
+    scope: "vercel",
+    nodeId: "app-router",
+    title: "The web half",
+    body: "Back on Vercel: Better Auth on Neon, the wake/sleep control for the box, and the same-origin proxy. Every route is a real handler.",
+  },
+  {
+    scope: "root",
     nodeId: null,
-    title: "Explore freely",
-    body: "That's the tour. Every number was measured on a real backend — copy the curl under any panel and check it yourself. Drag to orbit, click any node.",
+    title: "That's the stack",
+    body: "Top to bottom, every node was something real. Drag to orbit, click any node, and copy the curl under any panel to check it yourself.",
   },
 ];
